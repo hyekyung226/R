@@ -1,0 +1,330 @@
+---
+title: 'Business Statistics Assessment'
+author: 1859174
+output: 
+   html_document:
+    toc: true
+    toc_depth: 3 
+---
+
+```{r setup}
+library(tidyverse)
+library(plyr)
+library(emmeans)
+library(data.table)
+library(gridExtra)
+
+options(width=100)
+```
+
+---
+
+# Question 1 Answer
+
+## Question 1 Section 1
+
+(a)
+
+Figure 1 plots the weekend gross by word count of movie title. As seen below, the variance is smaller when the number of cinema is included in a covariate model. Univariate model explains little of unexplained variance, which leads the first variable to be not significant. However, if the variable 'the number of cinema' is added to a covariate model, it can make the first variable 'word count of movie title' more significant as the second added variable can explain more of unexplained variance.
+
+![](plot9.png)
+Figure 1. Weekend gross by Word Count
+
+ 
+(b)
+
+Figure 3 plots the weekend gross change based on the word count of movie title. It looks like there is a loss of weekend gross when the the movie title consists of more than one word. It looks like weekend gross varies by the number of words in the movie title and the number of cinemas used for each release. So, plot a change of weekend gross by the number of words in the movie title and the number of cinemas used for each release, which is seen from figure 4. The number of cinemas is higher with one word movie title and weekend gross is larger when the movie title constitutes one word.
+
+With more than one word title movie, the weeked gross is 1328880 95% CI [1306292 - 1351469]. With one word title movie, the weekend gross is 1340302 95% CI [1294215 - 1386389]. This is a increase of 0.9% 95% CI [0.93% -- 2.58%]. This increase is not significant, $t(220)=0.439$, $p=0.6614$.
+
+However, the number of cinemas also influenced the weekend gross. When including the number of cinemas, the weekend gross of more than one word title movie is 1324009 95% CI [1312455 - 1335562], while the weekend gross of one word title movie 1360583 95% CI [1336969 - 1384196]. This is a increase of 2.8% 95% CI [1.87% -- 3.64%]. This increase is significant, $t(219)=2.74$, $p<.0001$.
+
+![](plot1.png) 
+Figure 2. Weekend Gross by Word Count of Movie Title
+
+![](plot7.png) 
+Figure 3. Weekend Gross by Word Count and the Number of Cinemas
+
+---
+
+## Question 1 Section 2
+
+```{r}
+movie <- read.csv("movie_releases.csv")
+
+# count words in the title
+movie <- movie %>% mutate(num.film=str_count(str_trim(film), "\\S+")) %>% mutate(num.film = str_count(str_trim(gsub('\\(.*?\\)', '', film)), "\\S+"))
+
+# change the number of words in film title as factor and weeked gross numeric
+movie <- movie %>% mutate(num.film=as.factor(num.film)) %>% mutate(weekend.gross=as.numeric(weekend.gross))
+
+# divide the number of words in film title into one word and loger words
+movie <- movie %>% mutate(word.count=ifelse(num.film == 1,"One Word", "More Words"))
+```
+
+### Data Dictionary
+
+The data are from movie releases from July 2017-June 2018. Each row is about one movie.
+
+Variable          | Description
+----------------- | -------------------------------------------------------------------------------------------------------
+film              | the movie title
+country.of.origin | the country of origin
+weekend.gross     | the gross take on the opening weekend in ¡Ìs
+distributor       | film distributor
+number.of.cinemas | the number of cinemas the film was played in on the opening weekend
+weekend.start     | the opening weekend
+num.film          | the counted number of film title
+word.count        | if the number of the title is one word, it is "One Word"; Or, "More Words"
+--------------------------------------------------------------------------------------------------------------------
+
+```{r}
+movie %>% summarise(mean=mean(weekend.gross))
+ggplot(movie, aes(x=num.film, y=weekend.gross, group=num.film, col=num.film)) + geom_jitter(alpha=0.5) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", col="Word Count") + geom_hline(yintercept=1331093, lty=3)
+```
+
+### First Model (the weekend gross take as a function of the number of words)
+
+```{r}
+weekend.gross.by.word <- lm(weekend.gross~num.film, data=movie)
+summary(weekend.gross.by.word)
+cbind(coef(weekend.gross.by.word), confint(weekend.gross.by.word))
+(weekend.gross.by.word.emm <- emmeans(weekend.gross.by.word, ~num.film))
+
+ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept=1331093, lty=3) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are 95% CIs")
+```
+
+```{r}
+# check the contrast
+gross.pairs.uni <- confint(pairs(weekend.gross.by.word.emm))
+
+grid.arrange(
+ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are Extent of 95% CIs"),
+ggplot(gross.pairs.uni, aes(x=contrast, y=estimate, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept = 0, lty=2) + labs(x="Contrast", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are Extent of 95% CIs")
+)
+```
+
+### Second Model (the weekend gross take as a function of the number of words and the number of cinemas)
+
+```{r}
+weekend.gross.by.word.cov <- lm(weekend.gross~num.film+number.of.cinemas, data=movie)
+summary(weekend.gross.by.word.cov)
+cbind(coef(weekend.gross.by.word.cov), confint(weekend.gross.by.word.cov))
+(weekend.gross.by.word.cov.emm <- emmeans(weekend.gross.by.word.cov, ~num.film))
+
+anova(weekend.gross.by.word, weekend.gross.by.word.cov)
+
+ggplot(summary(weekend.gross.by.word.cov.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept=1331093, lty=3) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are 95% CIs")
+```
+
+```{r}
+# compare the univariate and covariate model
+weekend.word.emm.summary <- summary(weekend.gross.by.word.emm)
+weekend.word.emm.summary$model <- "Only With Word Count"
+weekend.word.cinema.emm.sumary <- summary(weekend.gross.by.word.cov.emm)
+weekend.word.cinema.emm.sumary$model <- "With Number of Cinemas"
+two.model.summary <- rbind(weekend.word.emm.summary, weekend.word.cinema.emm.sumary)
+
+( plot9 <- ggplot(two.model.summary, aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL, col=model)) + geom_point() + geom_linerange() + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are Extent of 95% CIs") )
+ggsave("plot9.png")
+```
+
+### (b)
+
+Plot a change of weekend gross by the number of words in the movie title.
+
+```{r}
+gross.mean <- ddply(movie, "word.count", summarise, rating.mean=mean(weekend.gross))
+( plot1 <-  ggplot(movie, aes(x=weekend.gross)) + geom_density(aes(group=word.count, fill=word.count), alpha=0.5) + geom_vline(data=gross.mean, aes(xintercept=rating.mean, colour=word.count), linetype="dashed", size=0.5) + labs(x="The Gross Take on the Opening Weekend(¡Ìs)", y="Density", fill="Word Count of Movie Title", col="Mean of Weekend Gross"))
+ggsave("plot1.png")
+```
+
+```{r}
+( plot7 <- ggplot(movie, aes(y=weekend.gross, x=number.of.cinemas, col=word.count)) + geom_point() + geom_smooth() + labs(x="The Number of Cinemas", y="The Gross Take on the Opening Weekend(¡Ìs)", col="Word Count of Movie Title") )
+ggsave("plot7.png")
+ggplot(movie, aes(x=number.of.cinemas, y=..density.., fill=word.count)) + geom_histogram(alpha=0.5, position="identity") + labs(x="Number of Cinemas", y="Density", fill="Word Count of Movie Title")
+ggplot(movie, aes(y=weekend.gross, x=word.count, col=word.count)) + geom_jitter(height=0, width=0.1) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend(¡Ìs)", col="Word Count of Movie Title")
+```
+
+```{r}
+# First Model
+weekend.gross.by.word.count <- lm(weekend.gross~word.count, data=movie)
+summary(weekend.gross.by.word.count)
+weekend.gross.by.word.count.emm <- emmeans(weekend.gross.by.word.count, ~word.count)
+summary(weekend.gross.by.word.count.emm)
+
+# Contrast
+confint(contrast(weekend.gross.by.word.count.emm, list(word.change=c(-1,1))))
+
+# Second Model
+weekend.gross.by.word.count.cov <- lm(weekend.gross~word.count+number.of.cinemas, data=movie)
+summary(weekend.gross.by.word.count.cov)
+weekend.gross.by.word.count.cov.emm <- emmeans(weekend.gross.by.word.count.cov, ~word.count, type="response")
+summary(weekend.gross.by.word.count.cov.emm)
+
+# Contrast
+confint(contrast(weekend.gross.by.word.count.cov.emm, list(word.change=c(-1,1))))
+
+# Compare two models
+anova(weekend.gross.by.word.count, weekend.gross.by.word.count.cov)
+```
+
+```{r}
+gross.by.word.cov <- lm(weekend.gross~num.film+number.of.cinemas, data=movie)
+word.in.movie <- count(movie, "num.film") %>% filter(num.film!='1') %>% mutate(weight=freq/sum(freq))
+anova(gross.by.word.cov)
+gross.by.word.cov.emm <- emmeans(gross.by.word.cov, ~num.film+number.of.cinemas)
+summary(gross.by.word.cov.emm)
+m.gross.by.word.cov <- aov(weekend.gross~num.film+number.of.cinemas, data=movie)
+summary(m.gross.by.word.cov)
+gross.by.word.cov.lm.emm <- emmeans(m.gross.by.word.cov, ~num.film)
+contrasts <- data.frame(one.more.title=c(1, -c(word.in.movie$weight)))
+confint(contrast(gross.by.word.cov.lm.emm, contrasts))
+```
+---
+
+# Question 2 Answer
+
+## Question 2 Section 1
+
+Balance has a significant effect on the full repayment, $\chi^2(1, 9716)=1045.6$, $p < .0001$. When the outstanding balance is high, people do not want to make a full repayment. Instead, they prefer to pay partially.
+
+The coefficient -0.00046 means that "The log odds of full repayment change by -0.00046 for every extra balance."
+This means that "The odds of full repayment change by e^-0.00046=0.9995 for every extra balance."
+
+![](plot4.png)
+Figure 4. The Probability to make a full repayment by balance
+
+The minumum payment required has a significant effect on the full repayment, $\chi^2(1, 9176)=1141.4$, $p < .0001$. When the required minimum payment is high, people do not want to make a full payment. Rather, they want to pay partially.
+
+The coefficient -0.02003 means that "The log odds of full repayment change by -0.02003 for every extra minimum payment required."
+This means that "The odds of full repayment change by e^-0.02003=0.9801 for every extra minimum payment required."
+
+![](plot5.png)
+
+Figure 5.The Probability to make a full repayment by minimum
+
+Seen from the figure 6, relmin can be divided into two groups: smaller than 0.025 and bigger than 0.025.
+
+![](plot8.png)
+Figure 6. Plot of relmin distribution
+
+As relmin is dervied from min, they are related; To check the relationship among balance, minimum and the probability of full repayment, it is reasonable to use relmin instead of min, shown from figure 7.
+
+The effects of balance on full repayment differ by relmin, $\chi^2(9714)=12323$, $p=0.04996$
+
+For the group who has relmin smaller than 0.025, higher outstanding balance decreases the possibility of full repayment.
+For the group who has relmin bigger than 0.025, higher outstanding balance decreases the possibility of full repayment.
+
+For relmin group 1(relmin<0.025), every extra balance reduces the odds of full repayment by 0.05% 95% CI [0.04%-0.06%].
+For relmin group 2(relmin>=0.025), every extra balance reduces the odds of full repayment by 0.04% 95% CI [0.03%-0.06%].
+
+![](plot6.png)
+Figure 7. The Probability to make a full repayment by balance and relmin
+
+---
+
+## Question 2 Section 2
+
+```{r}
+card <- read.csv("credit_cards.csv")
+```
+
+### Data Dictionary
+
+Variable   | Description
+---------- | -------------------------------------------------------------------------------------------------------
+bal        | the outstanding balance in pounds
+min        | the minimum payment required (in pounds, the card holder must repay at least this much of the balance)
+relmin     | the minimum as a fraction of the balance
+fullrepay  | a dummy variable where 1 indicates a full repayment and 0 indicates otherwise
+--------------------------------------------------------------------------------------------------------------------
+
+```{r}
+# check the correlation among bal, min and relmin
+round(cor(select(card, bal, min, relmin)), digits=2)
+grid.arrange(
+ggplot(card, aes(y=bal, x=min)) + geom_point() + geom_smooth(method=lm),
+ggplot(card, aes(y=bal, x=relmin)) + geom_point() + geom_smooth(method=lm),
+ggplot(card, aes(y=min, x=relmin)) + geom_point() + geom_smooth(method=lm),
+ncol=3
+)
+```
+
+```{r}
+# check the distribution
+ggplot(card, aes(y=fullrepay, x=bal)) + geom_jitter(width=0, height=0.1) + geom_smooth()
+
+# remove the outlier
+ggplot(card, aes(y=fullrepay, x=bal)) + geom_jitter(width=0, height=0.1) + geom_smooth() + xlim(0,20000) + ylim(0,1)
+```
+
+```{r}
+# model with balance
+pay.by.bal <- glm(fullrepay~bal, family=binomial, data=card)
+summary(pay.by.bal)
+cbind(coef(pay.by.bal), confint(pay.by.bal))
+summary(  pay.by.bal.emm <-  emmeans(pay.by.bal, ~bal, at=list(bal=seq(100,61000,100)), type="response")  )
+
+# break into deciles
+bal.deciles <- quantile(card$bal, probs = seq(0,1,0.1))
+
+card <- card %>% mutate(bal.decile=cut(bal, breaks = bal.deciles, include.lowest = TRUE))
+card %>% select(bal, bal.decile) %>% mutate(bal.decile=as.factor(bal.decile))
+
+pay.by.bal.decile <- card %>% group_by(bal.decile) %>% summarise(Proportion.Fullrepay=mean(fullrepay), decile.mean.bal=mean(bal))
+
+( plot4 <- ggplot(summary(pay.by.bal.emm), aes(x=bal, y=prob, ymin=asymp.LCL, ymax=asymp.UCL)) + geom_jitter(data=card, mapping=aes(y=fullrepay, x=bal, ymin=NULL, ymax=NULL), width=0, height=0.1) + geom_ribbon(alpha=0.5) + geom_line() + labs(x="Balance", y="Probability", title="The probability to make a full repayment by balance", subtitle="Dots are individuals who make full repayment or partial repayment. \nThe line and ribbon are the fit of a logistic regression model and its 95% CIs") + xlim(0,20000) + ylim(0,1) )
+ggsave("plot4.png")
+```
+
+```{r}
+# model with minimum
+pay.by.min <- glm(fullrepay~min, family=binomial, data=card)
+summary(pay.by.min)
+cbind(coef(pay.by.min), confint(pay.by.min))
+summary( pay.by.min.emm <-  emmeans(pay.by.min, ~min, at=list(min=seq(0,1600,50)), type="response")  )
+
+( plot5 <- ggplot(summary(pay.by.min.emm), aes(x=min, y=prob, ymin=asymp.LCL, ymax=asymp.UCL)) + geom_ribbon(alpha=0.5) + geom_line() + geom_jitter(data=card, mapping=aes(y=fullrepay, x=min, ymin=NULL, ymax=NULL), height=0.1, width=0) + labs(x="Minimum Required", y="Probability", title="The probability to make a full repayment by minimum", subtitle="Dots are individuals who make full repayment or partial repayment. \nThe line and ribbon are the fit of a logistic regression model and its 95% CIs") + xlim(0,500) + ylim(0,1) )
+ggsave("plot5.png")
+```
+
+```{r}
+# model with balance and minimum
+pay.by.bal.min <- glm(fullrepay~bal+min, family=binomial, data=card)
+cbind(coef(pay.by.bal.min), confint(pay.by.bal.min))
+anova(pay.by.bal.min, test="Chisq")
+summary( pay.by.bal.min.emm <- emmeans(pay.by.bal.min, ~bal+min, at=list(bal=seq(100,61000,100)), type="response"), n=10 )
+```
+
+```{r}
+# divide into two groups by relmin
+card <- card %>% mutate(rel.group=ifelse(relmin < 0.025, "1", "2"))
+
+# model with relmin
+pay.by.relmin <- glm(fullrepay~relmin, family=binomial, data=card)
+summary( pay.by.relmin.emm <-  emmeans(pay.by.relmin, ~relmin, type="response")  )
+
+( plot8 <- ggplot(summary(pay.by.relmin.emm), aes(x=relmin, y=prob, ymin=asymp.LCL, ymax=asymp.UCL)) + geom_ribbon(alpha=0.5) + geom_line() + geom_jitter(data=card, mapping=aes(y=fullrepay, x=relmin, ymin=NULL, ymax=NULL), height=0.1, width=0) + labs(x="relmin", y="Probability", title="The probability to make a full repayment by relmin") + ylim(0,1) )
+ggsave("plot8.png")
+
+# model with balance and relmin
+pay.by.bal.rel <- glm(fullrepay~bal*rel.group, family=binomial, data=card)
+summary(pay.by.bal.rel)
+anova(pay.by.bal.rel, test = "Chisq")
+
+( coefs <- cbind(coef(pay.by.bal.rel), confint(pay.by.bal.rel)) )
+( exp.coefs <- exp(coefs) )
+
+## Relmin Group 1
+round(1-coefs["bal",], digits = 4)
+
+
+## Relmin Group 2
+round(exp.coefs["bal",] * exp.coefs["bal:rel.group2",], digits=4)
+
+summary(pay.by.bal.rel.emm <- emmeans(pay.by.bal.rel, ~bal+rel.group, at=list(bal=seq(100,61000,100)), type="response"))
+
+( plot6 <- ggplot(summary(pay.by.bal.rel.emm), aes(x=bal, col=rel.group, fill=rel.group, y=prob, ymin=asymp.LCL, ymax=asymp.UCL)) + geom_ribbon(alpha=0.2) + geom_line() + geom_jitter(data=card, mapping=aes(y=fullrepay, x=bal, col=rel.group, ymin=NULL, ymax=NULL), height=0.1, width=0, alpha=0.2, show.legend=FALSE) + labs(x="Balance", y="Probability", col="Relmin Group", subtitle="Dots are individuals who make full repayment or partial repayment. \nThe line and ribbon are the fit of a logistic regression model and its 95% CIs") + xlim(0,20000) + ylim(0,1) )
+ggsave("plot6.png")
+```
