@@ -1,0 +1,116 @@
+---
+title: "WK 7"
+author: "HyeKyung Yoon"
+date: "2018³â 11¿ù 14ÀÏ"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(gridExtra)
+library(emmeans)
+library(lubridate)
+options(width = 100)
+dailybike <- read_csv("day.csv")
+dailybike <- dailybike %>% mutate(new.windspeed=windspeed*67)
+```
+
+```{r}
+dailybike <- dailybike %>% mutate(month=month(mnth, label=TRUE)) # Not needed
+```
+
+1. Run an regression using lm() of number of bikes hired by month of the year using the variable mnth. Plot the results. Explain what they mean. Explain why this is a bad idea
+
+```{r}
+m.bike.month <- lm(cnt~mnth, data=dailybike)
+summary(m.bike.month)
+m.bike.month.emm <- emmeans(m.bike.month, ~mnth, at=list(mnth=1:12))
+# I had to use `at=list(mnth=1:12)` to get `emmeans()` to give predictions for all months, rather than at `6.52` which is the mean of the month numbers over days---the middle of the year.
+ggplot(summary(m.bike.month.emm), aes(x= mnth, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + labs(x="Month", y="Mean Number of Bikes Hires", subtitle="Error bars are 95% CIs")
+```
+
+This model (`cnt~mnth`) is a linear regression of number of bike hires by the number of the month (from 1--12). This is a bad idea, unless you really believe that the effect of month is to add a fixed increase in bike hires as every month passes
+(It seems that there is the biggest demand in December from the graph but in fact, the real graph is a non-linear so it's wrong.)
+
+The `summary()` function shows two coefficients (the intercept and a slope for month) showing that the effect of the 12 months has been modelled using two parameters(the intercept and a slope for month)---that is, as a straight line
+
+2. Make a new month variable of type factor from mnth. Then repeat Step 1.
+
+```{r}
+dailybike <- mutate(dailybike, mnthf=factor(mnth, levels=1:12, labels=c("Jan", "Feb", "March", "April", "May", "June", "July", "Aug", "Sept", "Oct", "Nov", "Dec")))
+dailybike <- dailybike %>% mutate(mnthf2=month(ymd(dteday), label =TRUE)) # Also works, and has the advantage of not hand-coding the integer to day mapping
+str(pull(dailybike, mnthf)) # str(dailybike$mnthf)
+# First I make a new variable `mnthf` (the f is for factor). `str(days$mnthf)` tells us it is indeed a factor
+m.bike.monthf <- lm(cnt~mnthf, data=dailybike)
+summary(m.bike.monthf)
+m.bike.monthf.emm <- emmeans(m.bike.monthf, ~mnthf)
+(f.plot <- ggplot(summary(m.bike.monthf.emm), aes(x= mnthf, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point(col="magenta") + geom_linerange(col="magenta") + labs(x="Month", y="Mean Number of Bikes Hires", subtitle="Error bars are 95% CIs"))
+```
+
+The `summary()` on the model object `m.bike.monthf` tells us that 12 parameters have been used---one for each month---to model the variation in bike hires over the year
+I use `emmeans()` to get the model fit for each month, and then draw a beautiful plot
+The effect of month of the year is obviously non-linear, with more hires in the summer than the winter
+
+3. Formally compare the models form Steps 1 and 2 using ANOVA, again using lm(). What does the \(F\)-ratio and \(p\)-value tell you?
+
+```{r}
+anova(m.bike.month, m.bike.monthf)
+anova(m.bike.month)
+anova(m.bike.monthf)
+```
+The ANOVA tells you that allowing a free parameter for the mean of each month fits the data significantly better than assuming that there is a straight-line relationship over the year---which doesn't really make any sense at all as a model (F value and P value should be smaller.)
+
+Notice something really important: All that is changing the model from a linear regression into an ANOVA---from a model with 2 parameters to a model with 12 parameters---is whether `mnth` is a `factor` or a `numeric`/`integer` type! 
+
+4. Now take the model from Step 2 and combine your plot of the model predictions with a plot of a raw data
+
+It is always a good idea to complete some kind of plot that shows the raw data and the model predictions
+
+I've drawn three version. I like the `geom_point` plot best. Somehow it seems really honest to plot the raw data like this. I used jitter and alpha blending to help show all of the days clearly
+
+```{r}
+f.plot + geom_jitter(data=dailybike, mapping=aes(x=mnthf, y=cnt, ymin=NULL, ymax=NULL), alpha=0.5, height=0, width=0.2) + labs(subtitle="Each dot is one day. Error bars are 95% CIs of the mean") 
+f.plot + geom_violin(data=dailybike, mapping=aes(x=mnthf, y=cnt, ymin=NULL, ymax=NULL), alpha=0.5) + labs(subtitle="Violin is density over individual days. Error bars are 95% CIs of the mean") 
+f.plot + geom_boxplot(data=dailybike, mapping=aes(x=mnthf, y=cnt, ymin=NULL, ymax=NULL), alpha=0.5) + labs(subtitle="Boxplot shows distribution over individual days. Error bars are 95% CIs of the mean") 
+```
+
+I had to think really carefully about labelling this plot, because the $y$-axis is getting used for both the count on individual days and the mean over days in the month
+
+5. Add windspeed as a covariate. Does this improve the fit of the model? Discuss from a NHSTIng and an estimation approach. Which model (with or without windspeed) should you use to make the most accurate predictions?
+
+```{r}
+m.bike.mnthf.wind <- lm(cnt~mnthf+new.windspeed, data=dailybike)
+summary(m.bike.mnthf.wind)
+```
+```{r}
+anova(m.bike.monthf, m.bike.mnthf.wind)
+(  mean.wind <- mean(dailybike$new.windspeed)  )
+(m.bike.mnthf.wind.em <- emmeans(m.bike.mnthf.wind, ~mnthf+new.windspeed, at=list(new.windspeed=mean.wind)))
+both.models.emms <- bind_rows(list(data.frame(m.bike.monthf.emm, model="No Controls"), data.frame(m.bike.mnthf.wind.em, model="Controlling for windspeed")))
+ggplot(both.models.emms, aes(x=mnthf, y=emmean, ymin=lower.CL, ymax=upper.CL, col=model)) + geom_point() + geom_linerange() + labs(x="Month", y="Number of Bike Hires", subtitle="Error bars are 95% CIs")
+```
+
+Adding windspeed to the model significantly improves the fit $F(1,718)=21.5, p < .0001$
+
+However predictions differ very little between the model with and without windspeed. Without windspeed as a covariate, $R^2$=.39. With windspeed as a covariate $R^2=.41$. Although the improvement in fit with the inclusion of windspeed is significant, it is small
+
+Superimposing the plot of the models with and without the windspeed covariate show that the changes in the estimates of the means for each month vary very little when windspeed is held constant
+
+If we are interested in making predictions about the number of bikes hired, it doesn't really matter that month and windspeed are multicollinear. However, if we want to understand, for example, the true causal effect of windspeed, we should include month (and everything else can!) 
+
+6. Run a model with just windspeed as a predictor and compare it to the model with month and windspeed. Which model tells you more about whether a 10 mph increase in windspeed would cause a change in the number of bikes hired?
+```{r}
+m.bike.wind <- lm(cnt~new.windspeed, data=dailybike)
+summary(m.bike.wind)
+```
+
+6. The variable weathersit gives a qualitative description of the weather on each day. You'll need to make this into a factor. Is the effect of weather conditions the same in each month in the year?
+```{r}
+dailybike <- mutate(dailybike, weathersitf=factor(weathersit, levels=1:4, labels=c("Clear", "Misty", "Light Rain", "Heavy Rain")))
+m.bike.mnthf.sit <- lm(cnt~mnthf*weathersitf, data=dailybike)
+anova(m.bike.mnthf.sit)
+m.bike.mnthf.sit.emm <-  emmeans(m.bike.mnthf.sit, ~mnthf+weathersitf)
+ggplot(summary(m.bike.mnthf.sit.emm), aes(x=mnthf, y=emmean, ymin=lower.CL, ymax=upper.CL, col=weathersitf)) + geom_point() + geom_linerange(alpha=0.5) + labs(x="Month", y="Number of Bike Hires", col="Weather", subtitle="Error bars are 95% CIs")
+```
+
+The effect of weather conditions varies significantly over months of the year, $F(19, 698)=2.41$, $p=.0007$. Figure X plots the estimated mean number of bikes hired by month of the year and weather conditions. Fewer bikes are hired when it is raining at all times of the year. But the difference between clear and misty conditions depends upon the season. In the summer months, it appears that more bikes are hired in clear than misty conditions, whereas this makes little difference in the winter months. 

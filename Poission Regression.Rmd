@@ -1,0 +1,42 @@
+---
+title: "Poisson Regression"
+author: "HyeKyung Yoon"
+date: "2018³â 12¿ù 5ÀÏ"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(emmeans)
+library(lubridate)
+options(width = 100)
+```
+
+```{r}
+seatbelt <- read_csv("Seatbelts.csv")
+monthf <- c("Jan", "Feb","Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+seatbelt <- seatbelt %>% mutate(month=factor(month, monthf)) %>% mutate(law=as.factor(law))
+seatbelt
+ggplot(seatbelt, aes(x=DriversKilled)) + geom_histogram(binwidth = 1) + facet_grid(law~.) + labs(x="Count", y="Frequency")
+```
+
+```{r}
+m.seatbelt.l <- glm(DriversKilled~law, data=seatbelt, family = poisson)
+summary(m.seatbelt.l)
+m.seatbelt.lmp <- glm(DriversKilled~law+month+PetrolPrice, data=seatbelt, family = poisson)
+summary(m.seatbelt.lmp)
+```
+
+```{r}
+head(model.matrix(m.seatbelt.l))
+head(model.matrix(m.seatbelt.lmp))
+```
+
+For February, we have
+\(log(DriversKilled)=\beta_{Intercept} + beta_{February}\times February= 5.30206 + (-0.15542) = 5.14664\)
+And \(exp(5.14664) = 171.8531. We expect 171.8531 on February
+
+```{r}
+m.seatbelt.l.emm <- emmeans(m.seatbelt.l, ~law, type="response")
+m.seatbelt.lmp.emm <- emmeans(m.seatbelt.lmp, ~law, type="response")
+```

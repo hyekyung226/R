@@ -1,0 +1,157 @@
+---
+title: "WK 5"
+author: "HyeKyung Yoon"
+date: "2018³â 10¿ù 31ÀÏ"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+library(emmeans)
+library(gridExtra)
+sample1 <- read_csv("sample 1.csv")
+sample2 <- read_csv("sample 2.csv")
+sample3 <- read_csv("sample 3.csv")
+```
+
+# Secret code for making samples
+
+This is the code I used to take thousands of samples of 100, and then to select the sample I want to give a particular $p$-value. You don't need to understand this code. If you are running this code in real life, you are either teaching business statistics... or cheating!
+
+```{r}
+flights <- mutate(flights, gain=dep_delay-arr_delay) %>% filter (!is.na(gain) & origin %in% c("JFK", "LGA"))
+
+sample.with.seed <- function(seed, size) {
+	set.seed(seed)
+	s <- flights %>% sample_n(size)
+	result <- t.test(gain~origin, data=s)
+	tibble(seed=seed, size=size, t=result$statistic, p=result$p.value, lwr=result$conf.int[1], upr=result$conf.int[2])
+}
+
+samples.100 <- bind_rows(lapply(1:1000, sample.with.seed, size=100))
+samples.2000 <- bind_rows(lapply(1:1000, sample.with.seed, size=2000))
+
+# Sample 1
+samples.100 %>% filter(p<.05)
+set.seed(118)
+sample.1 <- flights %>% sample_n(100)
+ggplot(sample.1, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(gain~origin, data=sample.1)
+sample.1 <- sample.1 %>% mutate(gain=ifelse(gain < -50, -666, gain))
+ggplot(sample.1, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(gain~origin, data=sample.1)
+write_csv(sample.1, "sample_1.csv")
+
+
+# Sample 2
+samples.100 %>% filter(p>.60 & p <.65)
+set.seed(25)
+sample.2 <- flights %>% sample_n(100)
+ggplot(sample.2, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(gain~origin, data=sample.2)
+write_csv(sample.2, "sample_2.csv")
+
+
+# Sample 3
+samples.2000 %>% filter(p>.60 & p <.65)
+set.seed(533)
+sample.3 <- flights %>% sample_n(2000)
+ggplot(sample.3, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(gain~origin, data=sample.3)
+write_csv(sample.3, "sample_3.csv")
+```
+
+```{r}
+ggplot(sample1) + geom_histogram((mapping = aes(x=gain,fill=origin)))
+
+
+ggplot(sample1, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+sample1 %>% filter(gain < -200)
+```
+
+```{r}
+new.gain1 <- mutate(sample1, gain=dep_delay - arr_delay)
+t.test(gain~origin, data=new.gain1)
+ggplot(new.gain1, aes(x=gain, fill=origin)) +geom_histogram()
+
+sample1 <- sample1 %>% mutate(new.gain=dep_delay-arr_delay)
+ggplot(sample1, aes(x=gain, y=new.gain)) + geom_point()
+
+ggplot(sample1, aes(x=new.gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(new.gain~origin, data=sample1)
+```
+
+# Model Answer
+NHST approach: The mean in-air gain for flights from JFK is 9.7 minutes. The main in-air gain for flights from LGA is 0.6 minutes. Flights from JFK gain a significant 9.1 minutes more than flights from LGA, $t(81.7)=2.33$, $p=.022$.
+
+```{r}
+sample1.lm <- lm(gain~origin, data=new.gain1)
+(sample1.emm <- emmeans(sample1.lm, ~origin))
+(sample1.contr <- confint(pairs(sample1.emm)))
+```
+
+We conclude from our sample of 100 flights that the mean in-air gain from JFK airport is 9.67 minutes while that of LGA airport is 0.61 minutes, t(99)= 2.32, p<0.05. (choose alternative hyphothesis) -> not confident
+
+# Model Answer
+
+Estimation approach: The mean in-air gain for JFK is 9.7 minutes, 95% CI[4.6--14.8] minutes. The mean in-air gain for LGA is 0.6 minutes, 95% CI[-4.9--6.2] minutes. The mean gain for JFK is faster than LGA by 9.1 minutes, 95% CI[1.5--16.6] minutes
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
+new.gain2 <- mutate(sample2, gain=dep_delay - arr_delay)
+t.test(gain~origin, data=new.gain2)
+
+ggplot(sample2, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(gain~origin, data=sample2)
+```
+
+# Model Answer
+NHST approach: The mean in-air gain for flights from JFK is 5.4 minutes. The main in-air gain for flights from LGA is 3.6 minutes. The 1.9 minute difference is not significantly different from zero, $t(83.8)=0.52$, $p=.60$.
+
+```{r}
+sample2.lm <- lm(gain~origin, data=new.gain2)
+(sample2.emm <- emmeans(sample2.lm, ~origin))
+(sample2.contr <- confint(pairs(sample2.emm)))
+```
+
+We conclude from our sample of 100 flights that the mean in-air gain from JFK airport is 5.44 minutes while that of LGA airport is 3.56 minutes, t(99)= 0.52, p>0.05. (chosse null hypothesis)  -> confident
+
+# Model Answer
+Estimation approach: The mean in-air gain for JFK is 5.4 minutes, 95% CI[1.0--9.9] minutes. The mean in-air gain for LGA is 3.6 minutes, 95% CI[-2--9.2] minutes. The mean gain for JFK is faster than LGA by 1.9 minutes, but the 95% CI of [-5.3--9.1] minutes shows that we have not been able to estimate the difference with much accuracy (small sample)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+```{r}
+new.gain3 <- mutate(sample3, gain=dep_delay - arr_delay)
+t.test(gain~origin, data=new.gain3)
+
+ggplot(sample3, aes(x=gain, fill=origin)) + geom_histogram(binwidth=5, position="identity", alpha=0.5)
+t.test(gain~origin, data=sample3)
+```
+
+# Model Answer
+NHST approach: The mean in-air gain for flights from JFK is 5.9 minutes. The main in-air gain for flights from LGA is 5.5 minutes. The 0.4 minute difference is not significantly different from zero, $t(1984)=0.52$, $p=.60$.
+
+```{r}
+sample3.lm <- lm(gain~origin, data=new.gain3)
+(sample3.emm <- emmeans(sample3.lm, ~origin))
+(sample3.contr <- confint(pairs(sample3.emm)))
+```
+
+We conclude from our sample of 100 flights that the mean in-air gain from JFK airport is 5.88 minutes while that of LGA airport is 5.46 minutes, t(99)= 0.51, p>0.05. (chosse null hypothesis)  -> confident
+
+# Model Answer
+Estimation approach: The mean in-air gain for JFK is 5.9 minutes, 95% CI[4.8--7.0] minutes. The mean in-air gain for LGA is 5.5 minutes, 95% CI[4.3-6.6] minutes. The mean gain for JFK is faster than LGA by only 0.4 minutes. The 95% CI of [-1.2--2.0] minutes shows that we can be sure that if there is a difference in the in-air gain between JFK and LGA, it is not very large at all---no more than a couple of minutes either way (samll sample)
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Contrasting Samples 1 and 2
+
+The difference here is what we were illustrating in the dance of the confidence intervals. Always remember that the CI you get is one from many possible samples, and that, when the sample size is "small", they can vary considerably. The smallness of the $p$-value is not a good indicator of what might happen if you ran the study again 
+
+# Contrasting Samples 2 and 3
+
+I cheated, and chose these samples very carefully so that $t$ and $p$ are about the same. The CI for Sample 2 is wide---we have not learned much about the difference from a sample of 100 flights. Just that the difference in delay is (95%) likely to be between 5 minutes in favour of LGA(-5 minutes) through to 9 minutes in favour of JFK. The CI for Sample 3 is narrow---we have learned quite a lot. The difference is not significant, but we have learned more than that. We have learned that the difference is no more extreme than a couple of minutes either way. That is, the difference is a much more precise zero!
+
+

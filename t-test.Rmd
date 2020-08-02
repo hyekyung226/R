@@ -1,0 +1,82 @@
+---
+title: "t-test"
+author: "HyeKyung Yoon"
+date: "2018³â 11¿ù 2ÀÏ"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+
+# Sampling
+
+t.test(rnorm(n=100, mean=10, sd=10))
+t.test(rnorm(n=100, mean=20, sd=10))
+t.test(rnorm(n=100, mean=10, sd=5))
+t.test(rnorm(n=500, mean=10, sd=10))
+```
+
+When the sample mean increases, the standard deviation decreases, or the sample size increases, $t$ will get larger and $p$ will get smaller. We are more sure that the population mean is not zero when the sample mean increases, the standard deviation decreases, or the sample size increases.
+
+```{r}
+gender.gap <- read_csv("UK Gender Pay Gap Data - 2017 to 2018.csv")
+
+# Gender gap in mean
+
+summarise(gender.gap, mean=mean(DiffMeanHourlyPercent))
+t.test(gender.gap$DiffMeanHourlyPercent)
+```
+
+The pay gap in mean hourly pay 14.3%, which is significantly above zero, $t(10531)=96.5$, $p<.0001$
+
+```{r}
+gender.gap %>% summarise(mean=mean(DiffMeanHourlyPercent), N=n())
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent)) + geom_histogram(binwidth=1) + xlim(-100, 100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Frequency", subtitle="NB 5 observations <100 omitted and 1 observation>100 omitted")
+```
+
+Figure X. The distribution of gender pay gap. Pay gap is defined as the difference between mean male pay and mean female pay as a fraction of mean male pay. Bars are bins 1% wide
+
+```{r}
+
+# Public VS. Business/charities
+
+gender.gap <- mutate(gender.gap, Sector=ifelse(DueDate=="31/03/2018 00:00:00", "Public", "Business/Charity"))
+gender.sec <- gender.gap %>% group_by(Sector) %>% summarise(mean=mean(DiffMeanHourlyPercent))
+t.test(DiffMeanHourlyPercent~Sector, data=gender.gap)
+```
+
+Business / charity employers have a mean hourly pay gap of 14.2%. Public sector employers have a higher mean hourly pay gap of 14.9%. This difference of 0.7% is significant, $t(3304.5)=2.40$, $p=.016$
+
+```{r}
+gender.gap <- mutate(gender.gap, DueDate=dmy_hms(DueDate), Sector=ifelse(DueDate==ymd("2018-03-31"), "Public Sector", "Business / Charity"))
+(  gender.gap.by.sector <- gender.gap %>% group_by(Sector) %>% summarise(mean=mean(DiffMeanHourlyPercent), n=n())  )
+gender.gap.by.sector %>% summarise(difference=diff(mean))
+ggplot(gender.gap) + geom_histogram(aes(x=DiffMeanHourlyPercent), binwidth=1) + facet_grid(Sector~.) + xlim(-100,100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Frequency", subtitle="NB 5 observations <100 omitted and 1   observation>100 omitted") + geom_vline(data=gender.gap.by.sector, mapping=aes(xintercept=mean), col="green")
+```
+
+Figure X. The distribution of gender pay gap by industry sector. Green lines mark distribution means
+
+```{r}
+
+# Submitting late
+
+gender.gap <- mutate(gender.gap, SubmissionTime=ifelse(SubmittedAfterTheDeadline=="True", "late", "ontime"))
+gender.sub <- gender.gap %>% group_by(SubmissionTime) %>% summarise(mean=mean(DiffMeanHourlyPercent))
+t.test(DiffMeanHourlyPercent~SubmissionTime, data=gender.gap)
+```
+
+Employers submitting on time have a pay gap of 14.5%. Employers submitting late have a pay gap of 11.2%, which is a significant 3.3% lower, $t(705.56)=4.69$, $p<.0001$
+
+```{r}
+gender.gap <- gender.gap %>% mutate(SubmittedAfterTheDeadline=factor(SubmittedAfterTheDeadline, levels=c("True", "False"), labels=c("Late Submissions", "On-Time Submissions")))
+(  gender.gap.by.late <- gender.gap %>% group_by(SubmittedAfterTheDeadline) %>% summarise(frequency=n(), mean=mean(DiffMeanHourlyPercent))  )
+gender.gap.by.late %>% summarise(difference=diff(mean))
+t.test(DiffMeanHourlyPercent~SubmittedAfterTheDeadline, data=gender.gap)
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent, y=..density..)) + geom_histogram(binwidth=1) + facet_grid(SubmittedAfterTheDeadline~.) + xlim(-100,100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Density", subtitle="NB 5 observations <100 omitted and 1 observation>100 omitted") + geom_density()
+```
+
+Figure X. The distribution of gender pay gap by submission time. Bars show the density in 1% bins, and the black line shows the Gaussian smoothed density using Silverman's rule of thumb

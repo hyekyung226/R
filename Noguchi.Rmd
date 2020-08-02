@@ -1,0 +1,38 @@
+---
+title: "Noguchi"
+author: "HyeKyung Yoon"
+date: "2018³â 11¿ù 2ÀÏ"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+TP <- read_csv("time perspective.csv")
+```
+
+```{r}
+
+# Reshape the data into long format
+
+TP.long <- TP %>% gather(time.attitude, time.score, c(future_focus, future_horizon, past_focus, past_horizon)) %>% separate(time.attitude, into=c("time.direction", "time.type"), sep="_")
+TP.long?
+```
+
+```{r}
+
+# Create factors for pretty labels on plots
+
+TP.long <- TP.long %>% mutate(time.direction=factor(time.direction, levels=c("future", "past"), labels=c("Future", "Past")))
+TP.long <- TP.long %>% mutate(time.type=factor(time.type, levels=c("focus", "horizon"), labels=c("Focus", "Horizon")))
+TP.long <- TP.long %>% mutate(year=as.factor(year))
+```
+
+# Recreating Figure 3
+
+```{r}
+ggplot(TP.long, aes(x=time.score, y=gdp)) + geom_point(aes(col=year)) + facet_grid(time.type~time.direction) + scale_y_log10(breaks=c(1000,2000,5000,10000,20000,50000)) + labs(x="Time Score", y="Per-Capita GDP (USD)", col="Year") + geom_smooth(method="lm", col="black")
+```
+
+Figure X. Per-capita GDP as a function of future and past focuses and future and past time-horizons. Solid lines are fits of a linear model, with 95% confidence intervals given by the shaded area.

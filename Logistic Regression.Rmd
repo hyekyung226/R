@@ -1,0 +1,21 @@
+---
+title: "Logistic Regression"
+author: "HyeKyung Yoon"
+date: "2018³â 11¿ù 28ÀÏ"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(emmeans)
+options(width = 100)
+```
+
+```{r}
+camp <- read_delim("bank-additional-full.csv", delim = ";", guess_max=10000)
+names(camp) <- make.names(names(camp))
+camp <- camp %>% mutate(y=factor(y, levels=c("yes","no"), labels = c("1","0")))
+camp.depo.mth.bi <- glm(y~month, family = binomial, data=camp)
+summary(camp.depo.mth.bi)
+cbind(coef(camp.depo.mth.bi), confint(camp.depo.mth.bi))
+```

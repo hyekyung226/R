@@ -1,0 +1,209 @@
+---
+title: "GenderGap"
+author: "HyeKyung Yoon"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# WEEK 2 WORKSHOP
+
+```{r setup}
+
+library(tidyverse)
+gender.gap <- read_csv("UK gender Pay Gap Data - 2017 to 2018.csv")
+```
+
+Data Dictionary
+
+Data are from [https://data.gov.uk/dataset/54219db1-dd98-49d9-a383-a5978bb0aeb9/gender-pay-gap](https://data.gov.uk/dataset/54219db1-dd98-49d9-a383-a5978bb0aeb9/gender-pay-gap)
+
+"The gender pay gap is the difference between the average earnings of men and women, expressed relative to men¡¯s earnings. For example, ¡®women earn 15% less than men per hour¡¯."
+
+Details are available at [https://www.gov.uk/guidance/gender-pay-gap-reporting-overview](https://www.gov.uk/guidance/gender-pay-gap-reporting-overview) with calculation details [https://www.gov.uk/guidance/gender-pay-gap-reporting-make-your-calculations](https://www.gov.uk/guidance/gender-pay-gap-reporting-make-your-calculations)
+
+Variable                  | Description
+------------------------- | ---------------------------------------------------------
+EmployeerName             | 
+Adddress                  | 
+CompanyNumber             | Number from Companies House
+SicCodes                  | Standard industrial classification of economic activities
+DiffMeanHourlyPercent     | As described at the above link: $\frac{male~mean - female~mean}{male~mean} \times 100\%$
+DiffMedianHourlyPercent   | 
+DiffMeanBonusPercent      | 
+DiffMedianBonusPercent    | 
+MaleBonusPercent          | Percentage of males receiving a bonus
+FemaleBonusPercent        | 
+MaleLowerQuartile         | Percentage of lower quartile that are male
+FemaleLowerQuartile       | For each quartile, male and female percentages always sum to 100
+MaleLowerMiddleQuartile   | 
+FemaleLowerMiddleQuartile | 
+MaleUpperMiddleQuartile   | 
+FemaleUpperMiddleQuartile | 
+MaleTopQuartile           | 
+FemaleTopQuartile         | 
+CompanyLinkToGPGInfo      | URL to information on individual company web sites
+ResponsiblePerson         | Person responsible, often the Managing Director
+EmployeerSize             | Character string with range of number of employees e.g., "500 to 999"
+CurrentName               | Matches EmployerName for all but 2%
+SubmittedAfterTheDeadline | Boolean; 6% of companies submitted after the deadline
+DueDate                   | Either 31 March 2018 (public sector) or 5 April 2018 (businesses and charities)
+DateSubmitted             | Date and time submitted; no missing data
+---------------------------------------------------------------------------------------
+
+```{r}
+
+# Mean difference between male and female hourly pay
+
+summarise(gender.gap, MeanDifference = mean(DiffMeanHourlyPercent))
+
+
+gender.gap %>% summarise(mean(DiffMeanHourlyPercent))
+```
+
+The mean hourly pay for females is 14.3% lower than for males
+
+```{r}
+
+# Pay gap at Vodafone
+
+gender.gap %>% filter(grepl("VODAFONE GROUP",EmployerName)) %>% select(ends_with("quartile"))
+
+
+gender.gap %>% filter(grepl("VODAFONE", EmployerName))
+gender.gap %>% filter(EmployerName=="VODAFONE GROUP SERVICES LIMITED") %>% print(width=1000)
+```
+
+The gender pay gap for Vodafone is 14.6%
+
+```{r}
+
+# Sketch the distribution of pay for males and females
+
+gender.gap %>% filter(grepl("VODAFONE",EmployerName)) %>% select(starts_with("Female"))
+gender.gap %>% filter(grepl("VODAFONE",EmployerName)) %>% select(starts_with("Male"))
+```
+
+```{r}
+
+# Public sector vs. Business or Charities
+
+public <- filter(gender.gap, DueDate=="31/03/2018 00:00:00")
+business <- filter(gender.gap, DueDate=="05/04/2018 00:00:00")
+summarise(public, publie.gap=mean(DiffMeanHourlyPercent))
+summarise(business, business.gap=mean(DiffMeanHourlyPercent))
+
+
+library(lubridate)
+gender.gap <- mutate(gender.gap, DueDate=dmy_hms(DueDate), Sector=ifelse(DueDate==ymd("2018-03-31"), "Public Sector", "Business / Charity"))
+gender.gap %>% summarise(n())
+gender.gap %>% group_by(Sector) %>% summarise(frequency=n(), mean=mean(DiffMeanHourlyPercent))
+```
+
+The gender pay gap is larger for the public sector, at 14.9%, than for businesses or charities, where the gap is 14.2%
+
+```{r}
+
+# Submitted late VS. On time
+
+sub.late <- filter(gender.gap, SubmittedAfterTheDeadline=="True")
+sub.ontime <- filter(gender.gap, SubmittedAfterTheDeadline=="False")
+summarise(sub.late, late=mean(DiffMeanHourlyPercent))
+summarise(sub.ontime, ontime=mean(DiffMeanHourlyPercent))
+
+
+gender.gap %>% group_by(SubmittedAfterTheDeadline) %>% summarise(frequency=n(), mean=mean(DiffMeanHourlyPercent))
+```
+
+Those employers submitting on time have a pay gap of 14.5%, but the 641 employers submitting late have a pay gap of 11.2%
+
+```{r}
+
+# Change name
+gender.gap <- mutate(gender.gap, NameChange=EmployerName!=CurrentName)
+gender.gap %>% group_by(NameChange) %>% summarise(frequency=n(), mean=mean(DiffMeanHourlyPercent))
+```
+
+The 178 employers that change their name have a pay gap of 15.7% compared to 14.3% for those employers who do not change their name
+
+
+# WEEK 3 WORKSHOP
+
+```{r}
+library(tidyverse)
+library(lubridate)
+gender.gap <- read_csv("UK gender Pay Gap Data - 2017 to 2018.csv")
+```
+
+```{r}
+
+# Historgram
+
+ggplot(gender.gap) + geom_histogram(aes(DiffMeanHourlyPercent), binwidth= 1) + xlim(-100,100)
+
+
+filter(gender.gap, abs(DiffMeanHourlyPercent)>100)
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent)) + geom_histogram(binwidth=1) + xlim(-100, 100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Frequency", subtitle="NB 5 observations <-100 omitted and 1 observation>100 omitted")
+```
+
+Figure X. The distribution of gender pay gap. Pay gap is defined as the difference between mean male pay and mean female pay as a fraction of mean male pay. Bars are bins 1% wide.
+
+```{r}
+
+# Sector
+
+gender.gap <- mutate(gender.gap, DueDate=dmy_hms(DueDate), Sector=ifelse(DueDate==ymd("2018-03-31"), "Public Sector", "Business / Charity"))
+(gender.mean <-  gender.gap %>% group_by(Sector) %>% summarise(mean=mean(DiffMeanHourlyPercent)))
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent)) + geom_histogram(binwidth = 1) + facet_grid(Sector~.) + xlim(-100,100) + geom_vline(data=gender.mean, mapping = aes(xintercept=mean)) + labs(x="mean", y="frequency", caption="some insignificant objects were deleted")
+
+
+gender.gap <- mutate(gender.gap, DueDate=dmy_hms(DueDate), Sector=ifelse(DueDate==ymd("2018-03-31"), "Public Sector", "Business / Charity"))
+(  gender.gap.by.sector <- gender.gap %>% group_by(Sector) %>% summarise(frequency=n(), mean=mean(DiffMeanHourlyPercent))  )
+ggplot(gender.gap) + geom_histogram(aes(x=DiffMeanHourlyPercent), binwidth=1) + facet_grid(Sector~.) + xlim(-100,100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Frequency", subtitle="NB 5 observations <100 omitted and 1   observation>100 omitted") + geom_vline(data=gender.gap.by.sector, mapping=aes(xintercept=mean), col="green")
+```
+
+Figure X. The distribution of gender pay gap by industry sector. Green lines mark distribution means
+
+```{r}
+
+# Late vs. Ontime submission
+
+gender.gap <- mutate(gender.gap, SubmissionTime=ifelse(SubmittedAfterTheDeadline=="True", "late", "ontime"))
+(gender.sub <- gender.gap %>% group_by(SubmissionTime) %>% summarise(mean=mean(DiffMeanHourlyPercent)))
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent)) + geom_histogram(binwidth = 1) + facet_grid(SubmissionTime~.,scales="free_y") + xlim(-100,100) + labs(x="mean", y="frequency")
+
+
+gender.gap <- gender.gap %>% mutate(SubmittedAfterTheDeadline=factor(SubmittedAfterTheDeadline, levels=c("True", "False"), labels=c("Late Submissions", "On-Time Submissions")))
+gender.gap %>% group_by(SubmittedAfterTheDeadline) %>% summarise(frequency=n(), mean=mean(DiffMeanHourlyPercent))
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent)) + geom_histogram(binwidth=1) + facet_grid(SubmittedAfterTheDeadline~., scales="free_y") + xlim(-100,100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Frequency", subtitle="NB 5 observations <100 omitted and 1 observation>100 omitted")
+```
+
+Figure X. The distribution of gender pay gap by submission time. Note the change in frequency scale between panels
+
+It is hard to see the difference in the distributions, so let's try augmenting the distributions with density plots
+
+```{r}
+
+# Late vs. Ontime submission Density
+
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent, y=..density..)) + geom_histogram(binwidth = 1) + facet_grid(SubmissionTime~., scales="free_y") + xlim(-100,100) + labs(x="mean", y="frequency") + geom_density()
+
+
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent, y=..density..)) + geom_histogram(binwidth=1) + facet_grid(SubmittedAfterTheDeadline~.) + xlim(-100,100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Density", subtitle="NB 5 observations <100 omitted and 1 observation>100 omitted") + geom_density()
+```
+
+Figure X. The distribution of gender pay gap by submission time. Bars show the density in 1% bins, and the black line shows the Gaussian smoothed density using Silverman's rule of thumb
+
+See `?geom_density`, which leads you to `?bw.nrd` to find out how `geom_density()` does the smoothing
+
+
+```{r}
+
+# Draw empirical cumulative density
+
+ggplot(gender.gap, aes(x=DiffMeanHourlyPercent, col=SubmittedAfterTheDeadline)) + stat_ecdf() + xlim(-100,100) + labs(x=expression(frac(Male~Mean-Female~Mean,Male~Mean)*'%'), y="Cumulative Density", col="Submission Timing") + scale_y_continuous(breaks=seq(0,1,0.1))
+```
+
+Figure X. The empirical cumulative density function for the gender pay gap, separated by submission timing
+
+The distribution for late submissions is almost always to the left of the distribution for the on-time submissions, which means that the gender pay gap is a little smaller. However the CDFs cross just above the 90th percentile, which means the late submissions have the longer tail. 
