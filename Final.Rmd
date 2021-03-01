@@ -1,6 +1,6 @@
 ---
 title: 'Business Statistics Assessment'
-author: 1859174
+author: HyeKyung Yoon
 output: 
    html_document:
     toc: true
@@ -70,7 +70,7 @@ Variable          | Description
 ----------------- | -------------------------------------------------------------------------------------------------------
 film              | the movie title
 country.of.origin | the country of origin
-weekend.gross     | the gross take on the opening weekend in ¡Ìs
+weekend.gross     | the gross take on the opening weekend in Â¡ÃŒs
 distributor       | film distributor
 number.of.cinemas | the number of cinemas the film was played in on the opening weekend
 weekend.start     | the opening weekend
@@ -80,7 +80,7 @@ word.count        | if the number of the title is one word, it is "One Word"; Or
 
 ```{r}
 movie %>% summarise(mean=mean(weekend.gross))
-ggplot(movie, aes(x=num.film, y=weekend.gross, group=num.film, col=num.film)) + geom_jitter(alpha=0.5) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", col="Word Count") + geom_hline(yintercept=1331093, lty=3)
+ggplot(movie, aes(x=num.film, y=weekend.gross, group=num.film, col=num.film)) + geom_jitter(alpha=0.5) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (Â¡ÃŒs)", col="Word Count") + geom_hline(yintercept=1331093, lty=3)
 ```
 
 ### First Model (the weekend gross take as a function of the number of words)
@@ -91,7 +91,7 @@ summary(weekend.gross.by.word)
 cbind(coef(weekend.gross.by.word), confint(weekend.gross.by.word))
 (weekend.gross.by.word.emm <- emmeans(weekend.gross.by.word, ~num.film))
 
-ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept=1331093, lty=3) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are 95% CIs")
+ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept=1331093, lty=3) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (Â¡ÃŒs)", subtitle="Error bars are 95% CIs")
 ```
 
 ```{r}
@@ -99,8 +99,8 @@ ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.
 gross.pairs.uni <- confint(pairs(weekend.gross.by.word.emm))
 
 grid.arrange(
-ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are Extent of 95% CIs"),
-ggplot(gross.pairs.uni, aes(x=contrast, y=estimate, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept = 0, lty=2) + labs(x="Contrast", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are Extent of 95% CIs")
+ggplot(summary(weekend.gross.by.word.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (Â¡ÃŒs)", subtitle="Error bars are Extent of 95% CIs"),
+ggplot(gross.pairs.uni, aes(x=contrast, y=estimate, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept = 0, lty=2) + labs(x="Contrast", y="The Gross Take on the Opening Weekend (Â¡ÃŒs)", subtitle="Error bars are Extent of 95% CIs")
 )
 ```
 
@@ -114,7 +114,7 @@ cbind(coef(weekend.gross.by.word.cov), confint(weekend.gross.by.word.cov))
 
 anova(weekend.gross.by.word, weekend.gross.by.word.cov)
 
-ggplot(summary(weekend.gross.by.word.cov.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept=1331093, lty=3) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are 95% CIs")
+ggplot(summary(weekend.gross.by.word.cov.emm), aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL)) + geom_point() + geom_linerange() + geom_hline(yintercept=1331093, lty=3) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (Â¡ÃŒs)", subtitle="Error bars are 95% CIs")
 ```
 
 ```{r}
@@ -125,7 +125,7 @@ weekend.word.cinema.emm.sumary <- summary(weekend.gross.by.word.cov.emm)
 weekend.word.cinema.emm.sumary$model <- "With Number of Cinemas"
 two.model.summary <- rbind(weekend.word.emm.summary, weekend.word.cinema.emm.sumary)
 
-( plot9 <- ggplot(two.model.summary, aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL, col=model)) + geom_point() + geom_linerange() + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (¡Ìs)", subtitle="Error bars are Extent of 95% CIs") )
+( plot9 <- ggplot(two.model.summary, aes(x=num.film, y=emmean, ymin=lower.CL, ymax=upper.CL, col=model)) + geom_point() + geom_linerange() + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend (Â¡ÃŒs)", subtitle="Error bars are Extent of 95% CIs") )
 ggsave("plot9.png")
 ```
 
@@ -135,15 +135,15 @@ Plot a change of weekend gross by the number of words in the movie title.
 
 ```{r}
 gross.mean <- ddply(movie, "word.count", summarise, rating.mean=mean(weekend.gross))
-( plot1 <-  ggplot(movie, aes(x=weekend.gross)) + geom_density(aes(group=word.count, fill=word.count), alpha=0.5) + geom_vline(data=gross.mean, aes(xintercept=rating.mean, colour=word.count), linetype="dashed", size=0.5) + labs(x="The Gross Take on the Opening Weekend(¡Ìs)", y="Density", fill="Word Count of Movie Title", col="Mean of Weekend Gross"))
+( plot1 <-  ggplot(movie, aes(x=weekend.gross)) + geom_density(aes(group=word.count, fill=word.count), alpha=0.5) + geom_vline(data=gross.mean, aes(xintercept=rating.mean, colour=word.count), linetype="dashed", size=0.5) + labs(x="The Gross Take on the Opening Weekend(Â¡ÃŒs)", y="Density", fill="Word Count of Movie Title", col="Mean of Weekend Gross"))
 ggsave("plot1.png")
 ```
 
 ```{r}
-( plot7 <- ggplot(movie, aes(y=weekend.gross, x=number.of.cinemas, col=word.count)) + geom_point() + geom_smooth() + labs(x="The Number of Cinemas", y="The Gross Take on the Opening Weekend(¡Ìs)", col="Word Count of Movie Title") )
+( plot7 <- ggplot(movie, aes(y=weekend.gross, x=number.of.cinemas, col=word.count)) + geom_point() + geom_smooth() + labs(x="The Number of Cinemas", y="The Gross Take on the Opening Weekend(Â¡ÃŒs)", col="Word Count of Movie Title") )
 ggsave("plot7.png")
 ggplot(movie, aes(x=number.of.cinemas, y=..density.., fill=word.count)) + geom_histogram(alpha=0.5, position="identity") + labs(x="Number of Cinemas", y="Density", fill="Word Count of Movie Title")
-ggplot(movie, aes(y=weekend.gross, x=word.count, col=word.count)) + geom_jitter(height=0, width=0.1) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend(¡Ìs)", col="Word Count of Movie Title")
+ggplot(movie, aes(y=weekend.gross, x=word.count, col=word.count)) + geom_jitter(height=0, width=0.1) + labs(x="Word Count of Movie Title", y="The Gross Take on the Opening Weekend(Â¡ÃŒs)", col="Word Count of Movie Title")
 ```
 
 ```{r}
