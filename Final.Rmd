@@ -1,5 +1,5 @@
 ---
-title: 'Business Statistics Assessment'
+title: 'Business Statistics'
 author: HyeKyung Yoon
 output: 
    html_document:
